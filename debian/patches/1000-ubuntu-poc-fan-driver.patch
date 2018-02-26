@@ -1,0 +1,65 @@
+Description: POC fan driver support
+ POC Fan driver support
+Author: Jay Vosburgh <jay.vosburgh@canonical.com>
+
+Index: iproute2/ip/link_iptnl.c
+===================================================================
+--- iproute2.orig/ip/link_iptnl.c
++++ iproute2/ip/link_iptnl.c
+@@ -91,6 +91,7 @@ static int iptunnel_parse_opt(struct lin
+ 	__u32 link = 0;
+ 	__u32 laddr = 0;
+ 	__u32 raddr = 0;
++	__u32 underlay = 0;
+ 	__u8 ttl = 0;
+ 	__u8 tos = 0;
+ 	__u8 pmtudisc = 1;
+@@ -195,6 +196,9 @@ get_failed:
+ 		if (strcmp(*argv, "remote") == 0) {
+ 			NEXT_ARG();
+ 			raddr = get_addr32(*argv);
++		} else if (strcmp(*argv, "underlay") == 0) {
++			NEXT_ARG();
++			underlay = get_addr32(*argv);
+ 		} else if (strcmp(*argv, "local") == 0) {
+ 			NEXT_ARG();
+ 			laddr = get_addr32(*argv);
+@@ -356,6 +360,9 @@ get_failed:
+ 		}
+ 	}
+ 
++	if (underlay)
++		addattr32(n, 1024, IFLA_IPTUN_FAN_UNDERLAY, underlay);
++
+ 	return 0;
+ }
+ 
+@@ -409,6 +416,14 @@ static void iptunnel_print_opt(struct li
+ 
+ 	print_string(PRINT_ANY, "local", "local %s ", local);
+ 
++	if (tb[IFLA_IPTUN_FAN_UNDERLAY]) {
++		unsigned addr = rta_getattr_u32(tb[IFLA_IPTUN_FAN_UNDERLAY]);
++
++		if (addr)
++			print_string(PRINT_ANY, "underlay",  "underlay %s ",
++				format_host(AF_INET, 4, &addr));
++	}
++
+ 	if (tb[IFLA_IPTUN_LINK]) {
+ 		unsigned int link = rta_getattr_u32(tb[IFLA_IPTUN_LINK]);
+ 
+Index: iproute2/include/uapi/linux/if_tunnel.h
+===================================================================
+--- iproute2.orig/include/uapi/linux/if_tunnel.h
++++ iproute2/include/uapi/linux/if_tunnel.h
+@@ -77,6 +77,9 @@ enum {
+ 	IFLA_IPTUN_ENCAP_DPORT,
+ 	IFLA_IPTUN_COLLECT_METADATA,
+ 	IFLA_IPTUN_FWMARK,
++
++	IFLA_IPTUN_FAN_UNDERLAY = 32,
++
+ 	__IFLA_IPTUN_MAX,
+ };
+ #define IFLA_IPTUN_MAX	(__IFLA_IPTUN_MAX - 1)
