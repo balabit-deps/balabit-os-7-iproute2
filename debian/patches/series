@@ -3,3 +3,4 @@
 1001-ubuntu-poc-fan-driver-v3.patch
 1002-ubuntu-poc-fan-driver-vxlan.patch
 netns-allow-negative-nsid
+CVE-2019-20795.patch
