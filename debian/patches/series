@@ -4,3 +4,4 @@
 1002-ubuntu-poc-fan-driver-vxlan.patch
 netns-allow-negative-nsid
 CVE-2019-20795.patch
+lp1873961-tc-fix-bugs-for-tcp_flags-and-ip_attr-hex-output.patch

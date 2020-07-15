@@ -1,0 +1,150 @@
+From e8bd395508cead5a81c2bebd9d3705a9e41ea8bc Mon Sep 17 00:00:00 2001
+From: Keara Leibovitz <kleib@mojatatu.com>
+Date: Thu, 26 Jul 2018 09:45:30 -0400
+Subject: [PATCH] tc: fix bugs for tcp_flags and ip_attr hex output
+
+Fix hex output for both the ip_attr and tcp_flags print functions.
+
+Sample usage:
+
+$ $TC qdisc add dev lo ingress
+$ $TC filter add dev lo parent ffff: prio 3 proto ip flower ip_tos 0x8/32
+$ $TC fitler add dev lo parent ffff: prio 5 proto ip flower ip_proto tcp \
+	tcp_flags 0x909/f00
+
+$ $TC filter show dev lo parent ffff:
+
+filter protocol ip pref 3 flower chain 0
+filter protocol ip pref 3 flower chain 0 handle 0x1
+  eth_type ipv4
+  ip_tos 0x8/32
+  not_in_hw
+filter protocol ip pref 5 flower chain 0
+filter protocol ip pref 5 flower chain 0 handle 0x1
+  eth_type ipv4
+  ip_proto tcp
+  tcp_flags 0x909/f00
+  not_in_hw
+
+$ $TC -j filter show dev lo parent ffff:
+
+[{
+    "protocol":"ip",
+    "pref":3,
+    "kind":"flower",
+    "chain":0
+},{
+    "protocol":"ip",
+    "pref":3,
+    "kind":"flower",
+    "chain":0,
+    "options": {
+	"handle":1,
+	"keys": {
+	    "eth_type":"ipv4",
+	    "ip_tos":"0x8/32"
+    },
+    "not_in_hw":true
+    }
+},{
+    "protocol":"ip",
+    "pref":5,
+    "kind":"flower",
+    "chain":0
+},{
+    "protocol":"ip",
+    "pref":5,
+    "kind":"flower",
+    "chain":0,
+    "options": {
+	"handle":1,
+	"keys": {
+	    "eth_type":"ipv4",
+	    "ip_proto":"tcp",
+	    "tcp_flags":"0x909/f00"
+	},
+	"not_in_hw":true
+    }
+}]
+
+Signed-off-by: Keara Leibovitz <kleib@mojatatu.com>
+Signed-off-by: David Ahern <dsahern@gmail.com>
+
+BugLink: https://bugs.launchpad.net/bugs/1873961
+
+(backported from commit e8bd395508cead5a81c2bebd9d3705a9e41ea8bc
+ git://git.kernel.org/pub/scm/network/iproute2/iproute2.git)
+[smb: adjust for context in hunk #2 and additional static definition
+      of _SL_ in tc.c. This was added there for -o[oneline] support
+      which do not want to retrofit.]
+Signed-off-by: Stefan Bader <stefan.bader@canonical.com>
+---
+ tc/f_flower.c | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)
+
+Index: iproute2/tc/f_flower.c
+===================================================================
+--- iproute2.orig/tc/f_flower.c
++++ iproute2/tc/f_flower.c
+@@ -1117,7 +1117,7 @@ static void flower_print_ip_proto(__u8 *
+ 	*p_ip_proto = ip_proto;
+ }
+ 
+-static void flower_print_ip_attr(char *name, struct rtattr *key_attr,
++static void flower_print_ip_attr(const char *name, struct rtattr *key_attr,
+ 				 struct rtattr *mask_attr)
+ {
+ 	SPRINT_BUF(namefrm);
+@@ -1127,11 +1127,12 @@ static void flower_print_ip_attr(char *n
+ 	if (!key_attr)
+ 		return;
+ 
+-	done = sprintf(out, "%x", rta_getattr_u8(key_attr));
++	done = sprintf(out, "0x%x", rta_getattr_u8(key_attr));
+ 	if (mask_attr)
+ 		sprintf(out + done, "/%x", rta_getattr_u8(mask_attr));
+ 
+-	sprintf(namefrm, "\n  %s %%x", name);
++	print_string(PRINT_FP, NULL, "%s  ", _SL_);
++	sprintf(namefrm, "%s %%s", name);
+ 	print_string(PRINT_ANY, name, namefrm, out);
+ }
+ 
+@@ -1236,7 +1237,7 @@ static void flower_print_port(char *name
+ 	print_uint(PRINT_ANY, name, namefrm, rta_getattr_be16(attr));
+ }
+ 
+-static void flower_print_tcp_flags(char *name, struct rtattr *flags_attr,
++static void flower_print_tcp_flags(const char *name, struct rtattr *flags_attr,
+ 				   struct rtattr *mask_attr)
+ {
+ 	SPRINT_BUF(namefrm);
+@@ -1246,11 +1247,12 @@ static void flower_print_tcp_flags(char
+ 	if (!flags_attr)
+ 		return;
+ 
+-	done = sprintf(out, "%x", rta_getattr_be16(flags_attr));
++	done = sprintf(out, "0x%x", rta_getattr_be16(flags_attr));
+ 	if (mask_attr)
+-		sprintf(out + done, "%x", rta_getattr_be16(flags_attr));
++		sprintf(out + done, "/%x", rta_getattr_be16(mask_attr));
+ 
+-	sprintf(namefrm, "\n  %s %%s", name);
++	print_string(PRINT_FP, NULL, "%s  ", _SL_);
++	sprintf(namefrm, "%s %%s", name);
+ 	print_string(PRINT_ANY, name, namefrm, out);
+ }
+ 
+Index: iproute2/tc/tc.c
+===================================================================
+--- iproute2.orig/tc/tc.c
++++ iproute2/tc/tc.c
+@@ -43,6 +43,8 @@ int force;
+ bool use_names;
+ int json;
+ 
++const char *_SL_ = "\n";
++
+ static char *conf_file;
+ 
+ struct rtnl_handle rth;
