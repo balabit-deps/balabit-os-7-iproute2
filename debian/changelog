@@ -1,3 +1,10 @@
+iproute2 (4.15.0-2ubuntu1.3) bionic; urgency=medium
+
+  * Fix: NULL dereference when rendering without header (LP: #1913187)
+    - d/p/lp1913187-ss-fix-NULL-dereference-when-rendering.patch
+
+ -- Rafael David Tinoco <rafaeldtinoco@ubuntu.com>  Tue, 26 Jan 2021 13:33:08 +0000
+
 iproute2 (4.15.0-2ubuntu1.2) bionic; urgency=medium
 
   * tc filter show tcp_flags wrong mask value (LP: #1873961)

@@ -1,0 +1,40 @@
+Description: ss: fix NULL dereference when rendering without header
+
+fix NULL dereference when rendering without header
+
+When ss is invoked with the no-header flag, if the query doesn't return
+any result, render() is called with 'buffer' uninitialized. This
+currently leads to a segfault. Ensure that buffer is initialized before
+rendering.
+
+The bug can be triggered with: ss -H sport = 100000
+
+Signed-off-by: Jean-Philippe Brucker <jphilippe.brucker@gmail.com>
+Acked-by: Stefano Brivio <sbrivio@redhat.com>
+Signed-off-by: Stephen Hemminger <stephen@networkplumber.org>
+
+Author: Jean-Philippe Brucker <jphilippe.brucker@gmail.com>
+Origin: upstream, https://git.kernel.org/pub/scm/network/iproute2/iproute2.git/commit/?id=eb8559eff124221bfbafe934c4dbfe30f20604c0
+Bug-Ubuntu: https://launchpad.net/bugs/1913187
+Reviewed-By: Rafael David Tinoco <rafaeldtinoco@ubuntu.com>
+Last-Update: 2021-01-26
+
+--- iproute2-4.15.0.orig/misc/ss.c
++++ iproute2-4.15.0/misc/ss.c
+@@ -1196,10 +1196,15 @@ newline:
+ /* Render buffered output with spacing and delimiters, then free up buffers */
+ static void render(int screen_width)
+ {
+-	struct buf_token *token = (struct buf_token *)buffer.head->data;
++	struct buf_token *token;
+ 	int printed, line_started = 0;
+ 	struct column *f;
+ 
++	if (!buffer.head)
++		return;
++
++	token = (struct buf_token *)buffer.head->data;
++
+ 	/* Ensure end alignment of last token, it wasn't necessarily flushed */
+ 	buffer.tail->end += buffer.cur->len % 2;
+ 
